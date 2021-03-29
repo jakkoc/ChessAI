@@ -38,8 +38,6 @@ public class MiniMaxAdversary extends ComputerAdversary {
             thread.start();
         }
 
-        long currentTime = System.currentTimeMillis();
-
         for(Thread thread : threads) {
             try {
                 thread.join();
@@ -47,8 +45,6 @@ public class MiniMaxAdversary extends ComputerAdversary {
                 Logger.getLogger("global").log(Level.SEVERE,"Thread interrupted!", e);
             }
         }
-
-        System.out.println(System.currentTimeMillis() - currentTime);
 
         return moveToMake;
     }
@@ -136,7 +132,6 @@ public class MiniMaxAdversary extends ComputerAdversary {
 
     private void guessValue(ChessBoard board, ChessBoard.Field.Move move) {
         int guessedValue = 0;
-        ChessBoard.ChessPiece.Piece movePieceType = move.getFrom().getChessPiece().getPiece();
         ChessBoard.ChessPiece.Piece capturePieceType = board.getField(move.getPosition()).getChessPiece().getPiece();
 
         guessedValue += capturePieceType.getValue();
