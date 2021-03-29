@@ -770,6 +770,7 @@ public class ChessBoard {
             private final Field from;
             private final Position position;
             private ChessPiece.SpecialMove specialMove;
+            private int guessedValue;
 
             public Move(Position position, Field from) {
                 this.position = position;
@@ -796,6 +797,14 @@ public class ChessBoard {
 
             public void setSpecialMove(ChessPiece.SpecialMove specialMove) {
                 this.specialMove = specialMove;
+            }
+
+            public int getGuessedValue() {
+                return guessedValue;
+            }
+
+            public void setGuessedValue(int guessedValue) {
+                this.guessedValue = guessedValue;
             }
         }
     }
@@ -862,8 +871,8 @@ public class ChessBoard {
             NONE("NoName", 0),
             PAWN("Pawn", 100),
             ROOK("Rook", 500),
-            KNIGHT("Knight", 300),
-            BISHOP("Bishop", 300),
+            KNIGHT("Knight", 320),
+            BISHOP("Bishop", 330),
             QUEEN("Queen", 900),
             KING("King", 0);
 
