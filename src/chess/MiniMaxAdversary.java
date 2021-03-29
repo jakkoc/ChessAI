@@ -38,6 +38,8 @@ public class MiniMaxAdversary extends ComputerAdversary {
             thread.start();
         }
 
+        long currentTime = System.currentTimeMillis();
+
         for(Thread thread : threads) {
             try {
                 thread.join();
@@ -45,6 +47,8 @@ public class MiniMaxAdversary extends ComputerAdversary {
                 Logger.getLogger("global").log(Level.SEVERE,"Thread interrupted!", e);
             }
         }
+
+        System.out.println(System.currentTimeMillis() - currentTime);
 
         return moveToMake;
     }
@@ -73,6 +77,7 @@ public class MiniMaxAdversary extends ComputerAdversary {
             int maximumEvaluation = Integer.MIN_VALUE;
             int currentEvaluation;
             List<ChessBoard.Field.Move> moves = this.depth == depth ? startingMoves : board.getAllValidMoves(board.getColorToMove());
+            orderMoves(board, moves);
 
             for(ChessBoard.Field.Move move : moves) {
                 board.makeMove(move);
@@ -98,6 +103,7 @@ public class MiniMaxAdversary extends ComputerAdversary {
             int minimumEvaluation = Integer.MAX_VALUE;
             int currentEvaluation;
             List<ChessBoard.Field.Move> moves = this.depth == depth ? startingMoves : board.getAllValidMoves(board.getColorToMove());
+            orderMoves(board, moves);
 
             for(ChessBoard.Field.Move move : moves) {
                 board.makeMove(move);
@@ -118,6 +124,28 @@ public class MiniMaxAdversary extends ComputerAdversary {
 
             return minimumEvaluation;
         }
+    }
+
+    private void orderMoves(ChessBoard board, List<ChessBoard.Field.Move> moves) {
+        moves.forEach(move -> guessValue(board, move));
+
+        int sign = board.getColorToMove() == WHITE ? -1 : 1;
+
+        moves.sort((m1, m2) -> sign * (m1.getGuessedValue() - m2.getGuessedValue()));
+    }
+
+    private void guessValue(ChessBoard board, ChessBoard.Field.Move move) {
+        int guessedValue = 0;
+        ChessBoard.ChessPiece.Piece movePieceType = move.getFrom().getChessPiece().getPiece();
+        ChessBoard.ChessPiece.Piece capturePieceType = board.getField(move.getPosition()).getChessPiece().getPiece();
+
+        guessedValue += capturePieceType.getValue();
+
+        if(move.getSpecialMove() == SpecialMove.PROMOTION) {
+            guessedValue += choosePromotion().getValue();
+        }
+
+        move.setGuessedValue(guessedValue);
     }
 
     private int evaluate(ChessBoard board) {
