@@ -158,7 +158,7 @@ public class ChessBoard {
         }
     }
 
-    private List<Field> fieldsAttackingKing() {
+    private List<Field> fieldsAttackingKing(ChessPiece.Color color) {
         List<Field> attackingFields = new ArrayList<>();
         ChessPiece chessPiece;
         boolean isAttacked;
@@ -166,9 +166,9 @@ public class ChessBoard {
         for (Field[] fieldRow : board) {
             for (Field field : fieldRow) {
                 chessPiece = field.getChessPiece();
-                isAttacked = field.getPosition().isAttacked(ChessPiece.Color.getOpposingColor(colorToMove), true);
+                isAttacked = field.getPosition().isAttacked(ChessPiece.Color.getOpposingColor(color), true);
 
-                if (chessPiece.getPiece() == ChessPiece.Piece.KING && chessPiece.getColor() == colorToMove && isAttacked) {
+                if (chessPiece.getPiece() == ChessPiece.Piece.KING && chessPiece.getColor() == color && isAttacked) {
                     attackingFields.add(field);
                 }
             }
@@ -262,24 +262,15 @@ public class ChessBoard {
 
         public List<Move> getValidMoves() {
             List<Move> possibleMoves = new ArrayList<>();
-            Field targetField;
-            ChessPiece previousFigure;
 
             for (Move move : getIntermediateMoves(false)) {
-                Position position = move.getPosition();
+                makeMove(move);
 
-                targetField = board[position.getRow()][position.getColumn()];
-
-                previousFigure = new ChessPiece(targetField.getChessPiece());
-                targetField.setChessPiece(chessPiece);
-                chessPiece = new ChessPiece();
-
-                if (fieldsAttackingKing().size() == 0) {
+                if (fieldsAttackingKing(chessPiece.getColor()).size() == 0) {
                     possibleMoves.add(move);
                 }
 
-                chessPiece = targetField.getChessPiece();
-                targetField.setChessPiece(previousFigure);
+                unmakeMove(move);
             }
 
             return possibleMoves;
