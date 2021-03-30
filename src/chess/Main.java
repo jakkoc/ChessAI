@@ -9,6 +9,7 @@ public class Main {
         EventQueue.invokeLater(() -> {
             ChessFrame frame = new ChessFrame(ChessBoard.startingPosition());
             frame.setVisible(true);
+            frame.chooseDifficulty();
         });
     }
 }
