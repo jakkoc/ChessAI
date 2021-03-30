@@ -6,10 +6,10 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.WindowEvent;
-import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static chess.ComputerAdversaryFactory.Difficulty.*;
 import static javax.swing.BoxLayout.Y_AXIS;
 
 public class ChessFrame extends JFrame implements MouseListener, MouseMotionListener {
@@ -117,6 +117,31 @@ public class ChessFrame extends JFrame implements MouseListener, MouseMotionList
     private void setLocation() {
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         setLocation((int) (screenSize.getWidth() - getWidth()) / 2, (int) (screenSize.getHeight() - getHeight()) / 2);
+    }
+
+    public void chooseDifficulty() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, Y_AXIS));
+        panel.setSize(this.getWidth() / 3, this.getHeight() / 6);
+
+        ComputerAdversaryFactory.Difficulty[] difficulties = {VERY_EASY, EASY, MEDIUM, HARD, VERY_HARD};
+
+        JList<ComputerAdversaryFactory.Difficulty> list = new JList<>(difficulties);
+        list.setFixedCellWidth(panel.getWidth());
+        list.setFixedCellHeight(panel.getHeight() / 4);
+
+        DifficultyCellRenderer cellRenderer = new DifficultyCellRenderer();
+        cellRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        list.setCellRenderer(cellRenderer);
+
+        panel.add(list);
+
+        JOptionPane.showMessageDialog(null, panel, "Difficulty", JOptionPane.PLAIN_MESSAGE, null);
+        ComputerAdversaryFactory.Difficulty selectedDifficulty = list.getSelectedValue();
+
+        if (selectedDifficulty == null) selectedDifficulty = MEDIUM;
+
+        board.setAdversary(ComputerAdversaryFactory.ofDifficulty(board, ChessBoard.ChessPiece.Color.BLACK, selectedDifficulty));
     }
 
     @Override

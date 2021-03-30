@@ -13,12 +13,14 @@ public class MiniMaxAdversary extends ComputerAdversary {
     private final Thread[] threads;
     private int bestEvaluation;
     private static final int NUMBER_OF_THREADS = 4;
+    private boolean usesPieceTables;
     private final int depth;
 
-    public MiniMaxAdversary(ChessBoard.ChessPiece.Color color, ChessBoard board, int depth) {
+    public MiniMaxAdversary(ChessBoard.ChessPiece.Color color, ChessBoard board, int depth, boolean usesPieceTables) {
         super(color, board);
         this.depth = depth;
         threads = new Thread[NUMBER_OF_THREADS];
+        this.usesPieceTables = usesPieceTables;
     }
 
     @Override
@@ -76,7 +78,7 @@ public class MiniMaxAdversary extends ComputerAdversary {
             orderMoves(board, moves);
 
             for(ChessBoard.Field.Move move : moves) {
-                int positionValueChange = PieceTables.evaluateMovePositionChange(board, move);
+                int positionValueChange = usesPieceTables ? PieceTables.evaluateMovePositionChange(board, move) : 0;
 
                 board.makeMove(move);
                 currentEvaluation = positionValueChange + minimax(board, startingMoves, depth - 1, false, alpha, beta);
@@ -104,7 +106,7 @@ public class MiniMaxAdversary extends ComputerAdversary {
             orderMoves(board, moves);
 
             for(ChessBoard.Field.Move move : moves) {
-                int positionValueChange = PieceTables.evaluateMovePositionChange(board, move);
+                int positionValueChange = usesPieceTables ? PieceTables.evaluateMovePositionChange(board, move) : 0;
                 board.makeMove(move);
                 currentEvaluation = positionValueChange + minimax(board, startingMoves, depth - 1, true, alpha, beta);
                 board.unmakeMove(move);

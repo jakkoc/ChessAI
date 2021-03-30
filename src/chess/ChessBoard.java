@@ -2,9 +2,11 @@ package chess;
 
 import java.util.*;
 
+import static chess.ChessBoard.ChessPiece.Color.BLACK;
+
 public class ChessBoard {
     private final Field[][] board;
-    private final ComputerAdversary adversary;
+    private ComputerAdversary adversary;
     private ChessPiece.Color colorToMove;
     private final Stack<ChessPiece> lastTaken;
     private boolean whiteQueenStanding;
@@ -40,7 +42,7 @@ public class ChessBoard {
 
     private ChessBoard(Field[][] board) {
         this.board = board;
-        adversary = new MiniMaxAdversary(ChessPiece.Color.BLACK, this, 4);
+        adversary = new MiniMaxAdversary(BLACK, this, 3, true);
         lastTaken = new Stack<>();
         whiteQueenStanding = true;
         blackQueenStanding = true;
@@ -53,6 +55,10 @@ public class ChessBoard {
 
         putPiecesOnStartingPositions(board);
         colorToMove = ChessPiece.Color.WHITE;
+    }
+
+    public void setAdversary(ComputerAdversary adversary) {
+        this.adversary = adversary;
     }
 
     public boolean cannotMove(ChessPiece.Color color) {
@@ -74,13 +80,6 @@ public class ChessBoard {
 
 
         return cannotMove(opposingColor) && isAttacked;
-    }
-
-    public boolean isStalemate(ChessPiece.Color matingSite) {
-        ChessPiece.Color opposingColor = ChessPiece.Color.getOpposingColor(matingSite);
-
-
-        return cannotMove(opposingColor);
     }
 
     public void makeMove(Field.Move moveToMake) {
@@ -192,7 +191,7 @@ public class ChessBoard {
     }
 
     public void changeTurn() {
-        if (colorToMove == ChessPiece.Color.WHITE) colorToMove = ChessPiece.Color.BLACK;
+        if (colorToMove == ChessPiece.Color.WHITE) colorToMove = BLACK;
         else colorToMove = ChessPiece.Color.WHITE;
 
         for (Field[] fieldRow : board) {
@@ -215,7 +214,7 @@ public class ChessBoard {
 
     private void putPawns(Field[][] board) {
         for (Field field : board[1]) {
-            field.setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.PAWN));
+            field.setChessPiece(new ChessPiece(BLACK, ChessPiece.Piece.PAWN));
         }
 
         for (Field field : board[6]) {
@@ -224,33 +223,33 @@ public class ChessBoard {
     }
 
     private void putRooks(Field[][] board) {
-        board[0][0].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.ROOK));
-        board[0][7].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.ROOK));
+        board[0][0].setChessPiece(new ChessPiece(BLACK, ChessPiece.Piece.ROOK));
+        board[0][7].setChessPiece(new ChessPiece(BLACK, ChessPiece.Piece.ROOK));
         board[7][0].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.ROOK));
         board[7][7].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.ROOK));
     }
 
     private void putKnights(Field[][] board) {
-        board[0][1].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.KNIGHT));
-        board[0][6].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.KNIGHT));
+        board[0][1].setChessPiece(new ChessPiece(BLACK, ChessPiece.Piece.KNIGHT));
+        board[0][6].setChessPiece(new ChessPiece(BLACK, ChessPiece.Piece.KNIGHT));
         board[7][1].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.KNIGHT));
         board[7][6].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.KNIGHT));
     }
 
     private void putBishops(Field[][] board) {
-        board[0][2].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.BISHOP));
-        board[0][5].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.BISHOP));
+        board[0][2].setChessPiece(new ChessPiece(BLACK, ChessPiece.Piece.BISHOP));
+        board[0][5].setChessPiece(new ChessPiece(BLACK, ChessPiece.Piece.BISHOP));
         board[7][2].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.BISHOP));
         board[7][5].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.BISHOP));
     }
 
     private void putQueens(Field[][] board) {
-        board[0][3].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.QUEEN));
+        board[0][3].setChessPiece(new ChessPiece(BLACK, ChessPiece.Piece.QUEEN));
         board[7][3].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.QUEEN));
     }
 
     private void putKings(Field[][] board) {
-        board[0][4].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.KING));
+        board[0][4].setChessPiece(new ChessPiece(BLACK, ChessPiece.Piece.KING));
         board[7][4].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.KING));
 
         whiteKingField = getField(7, 4);
@@ -449,7 +448,7 @@ public class ChessBoard {
                 ChessPiece attackedPiece = getField(attackedPosition).getChessPiece();
 
                 if(attackedPiece.getColor() == opposingColor && chessPiece.getMovesMade() == 1 && chessPiece.getPiece() == ChessPiece.Piece.PAWN) {
-                    return opposingColor == ChessPiece.Color.BLACK && attackedPosition.getRow() == 3 || opposingColor == ChessPiece.Color.WHITE && attackedPosition.getRow() == 4;
+                    return opposingColor == BLACK && attackedPosition.getRow() == 3 || opposingColor == ChessPiece.Color.WHITE && attackedPosition.getRow() == 4;
                 }
             }
 
