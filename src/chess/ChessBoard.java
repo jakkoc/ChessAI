@@ -1,16 +1,20 @@
 package chess;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class ChessBoard {
     private final Field[][] board;
     private final ComputerAdversary adversary;
     private ChessPiece.Color colorToMove;
     private final Stack<ChessPiece> lastTaken;
+    private boolean whiteQueenStanding;
+    private boolean blackQueenStanding;
+    private Field whiteKingField;
+    private Field blackKingField;
 
     public static ChessBoard startingPosition() {
         Field[][] board = new Field[8][8];
+        PieceTables.initializePieceTables();
 
         return new ChessBoard(board);
     }
@@ -28,12 +32,18 @@ public class ChessBoard {
         adversary = chessBoard.getAdversary();
         colorToMove = chessBoard.colorToMove;
         lastTaken = (Stack<ChessPiece>) chessBoard.lastTaken.clone();
+        whiteQueenStanding = chessBoard.whiteQueenStanding;
+        blackQueenStanding = chessBoard.blackQueenStanding;
+        whiteKingField = new Field(chessBoard.whiteKingField);
+        blackKingField = new Field(chessBoard.blackKingField);
     }
 
     private ChessBoard(Field[][] board) {
         this.board = board;
-        adversary = new MiniMaxAdversary(ChessPiece.Color.BLACK, this, 3);
+        adversary = new MiniMaxAdversary(ChessPiece.Color.BLACK, this, 4);
         lastTaken = new Stack<>();
+        whiteQueenStanding = true;
+        blackQueenStanding = true;
 
         for (int row = 0; row < 8; row++) {
             for (int column = 0; column < 8; column++) {
@@ -45,55 +55,74 @@ public class ChessBoard {
         colorToMove = ChessPiece.Color.WHITE;
     }
 
+    public boolean cannotMove(ChessPiece.Color color) {
+        ChessPiece.Color previousColor = colorToMove;
+        colorToMove = color;
+
+        List<Field.Move> possibleMoves = getAllValidMoves(color);
+
+        colorToMove = previousColor;
+
+        return possibleMoves.isEmpty();
+    }
+
+    public boolean isCheckMate(ChessPiece.Color matingSite) {
+        Field enemyKingField = colorToMove == ChessPiece.Color.WHITE ? whiteKingField : blackKingField;
+        ChessPiece.Color opposingColor = ChessPiece.Color.getOpposingColor(matingSite);
+
+        boolean isAttacked = enemyKingField.getPosition().isAttacked(matingSite);
+
+
+        return cannotMove(opposingColor) && isAttacked;
+    }
+
+    public boolean isStalemate(ChessPiece.Color matingSite) {
+        ChessPiece.Color opposingColor = ChessPiece.Color.getOpposingColor(matingSite);
+
+
+        return cannotMove(opposingColor);
+    }
+
     public void makeMove(Field.Move moveToMake) {
         ChessPiece movedPiece = new ChessPiece(getField(moveToMake.getFrom().getPosition()).getChessPiece());
         lastTaken.push(getField(moveToMake.getPosition()).getChessPiece());
         getField(moveToMake.getFrom().getPosition()).setChessPiece(new ChessPiece());
         getField(moveToMake.getPosition()).setChessPiece(movedPiece);
         changeTurn();
+
+        if(lastTaken.peek().getPiece() == ChessPiece.Piece.QUEEN) {
+            if(lastTaken.peek().getColor() == ChessPiece.Color.WHITE) whiteQueenStanding = false;
+            else blackQueenStanding = false;
+        }
+
+        if (movedPiece.getPiece() == ChessPiece.Piece.KING) {
+            if(movedPiece.getColor() == ChessPiece.Color.WHITE) whiteKingField = getField(moveToMake.getPosition());
+            else blackKingField = getField(moveToMake.getPosition());
+        }
+
     }
 
     public void unmakeMove(Field.Move moveMade) {
+        ChessPiece chessPiece = lastTaken.pop();
+
         ChessPiece movedPiece = new ChessPiece(getField(moveMade.getPosition()).getChessPiece());
-        getField(moveMade.getPosition()).setChessPiece(lastTaken.pop());
+        getField(moveMade.getPosition()).setChessPiece(chessPiece);
         getField(moveMade.getFrom().getPosition()).setChessPiece(movedPiece);
         changeTurn();
-    }
 
-    public ChessPiece.Color getWinner() {
-        List<Field.Move> whiteMoves = new ArrayList<>();
-        List<Field.Move> blackMoves = new ArrayList<>();
-        ChessPiece.Color originalColor = colorToMove;
-
-        for (Field[] fieldRow : board) {
-            for (Field field : fieldRow) {
-                if (field.getChessPiece().getColor() == ChessPiece.Color.WHITE) {
-                    colorToMove = ChessPiece.Color.WHITE;
-                    whiteMoves.addAll(field.getValidMoves());
-                } else if (field.getChessPiece().getColor() == ChessPiece.Color.BLACK) {
-                    colorToMove = ChessPiece.Color.BLACK;
-                    blackMoves.addAll(field.getValidMoves());
-                }
-            }
+        if(chessPiece.getPiece() == ChessPiece.Piece.QUEEN) {
+            if(chessPiece.getColor() == ChessPiece.Color.WHITE) whiteQueenStanding = true;
+            else blackQueenStanding = true;
         }
 
-        colorToMove = originalColor;
-
-        if (whiteMoves.isEmpty()) return ChessPiece.Color.BLACK;
-        else if (blackMoves.isEmpty()) return ChessPiece.Color.WHITE;
-        else return ChessPiece.Color.NONE;
+        if(movedPiece.getPiece() == ChessPiece.Piece.KING) {
+            if(movedPiece.getColor() == ChessPiece.Color.WHITE) whiteKingField = moveMade.getFrom();
+            else blackKingField = moveMade.getFrom();
+        }
     }
 
-    public boolean isStalemate(ChessPiece.Color color) {
-        ChessPiece.Color previousColor = colorToMove;
-        ChessPiece.Color attackedColor = ChessPiece.Color.getOpposingColor(color);
-        colorToMove = color;
-
-        boolean isStalemate = !findKingPosition(attackedColor).isAttacked(color, true);
-
-        colorToMove = previousColor;
-
-        return isStalemate;
+    public boolean isEndgame() {
+        return !whiteQueenStanding && !blackQueenStanding;
     }
 
     public ComputerAdversary getAdversary() {
@@ -127,6 +156,16 @@ public class ChessBoard {
 
     public void addPiece(int row, int column, ChessPiece chessPiece) {
         board[row][column].setChessPiece(chessPiece);
+
+        if(chessPiece.getPiece() == ChessPiece.Piece.QUEEN) {
+            if(chessPiece.getColor() == ChessPiece.Color.WHITE) whiteQueenStanding = true;
+            else blackQueenStanding = true;
+        }
+
+        if (chessPiece.getPiece() == ChessPiece.Piece.KING) {
+            if (chessPiece.getColor() == ChessPiece.Color.WHITE) whiteKingField = getField(row, column);
+            else blackKingField = getField(row, column);
+        }
     }
 
     public void addPiece(Field.Position position, ChessPiece chessPiece) {
@@ -134,6 +173,13 @@ public class ChessBoard {
     }
 
     public void removePiece(int row, int column) {
+        ChessPiece removedPiece = board[row][column].getChessPiece();
+
+        if(removedPiece.getPiece() == ChessPiece.Piece.QUEEN) {
+            if(removedPiece.getColor() == ChessPiece.Color.WHITE) whiteQueenStanding = false;
+            else blackQueenStanding = false;
+        }
+
         board[row][column].setChessPiece(new ChessPiece());
     }
 
@@ -158,38 +204,7 @@ public class ChessBoard {
         }
     }
 
-    private List<Field> fieldsAttackingKing(ChessPiece.Color color) {
-        List<Field> attackingFields = new ArrayList<>();
-        ChessPiece chessPiece;
-        boolean isAttacked;
-
-        for (Field[] fieldRow : board) {
-            for (Field field : fieldRow) {
-                chessPiece = field.getChessPiece();
-                isAttacked = field.getPosition().isAttacked(ChessPiece.Color.getOpposingColor(color), true);
-
-                if (chessPiece.getPiece() == ChessPiece.Piece.KING && chessPiece.getColor() == color && isAttacked) {
-                    attackingFields.add(field);
-                }
-            }
-        }
-
-        return attackingFields;
-    }
-
-    public Field.Position findKingPosition(ChessPiece.Color color) {
-        for(Field[] fieldRow : board) {
-            for (Field field : fieldRow) {
-                if (field.getChessPiece().getColor() == color && field.getChessPiece().getPiece() == ChessPiece.Piece.KING) {
-                    return field.getPosition();
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static void putPiecesOnStartingPositions(Field[][] board) {
+    private void putPiecesOnStartingPositions(Field[][] board) {
         putPawns(board);
         putRooks(board);
         putKnights(board);
@@ -198,7 +213,7 @@ public class ChessBoard {
         putKings(board);
     }
 
-    private static void putPawns(Field[][] board) {
+    private void putPawns(Field[][] board) {
         for (Field field : board[1]) {
             field.setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.PAWN));
         }
@@ -208,35 +223,38 @@ public class ChessBoard {
         }
     }
 
-    private static void putRooks(Field[][] board) {
+    private void putRooks(Field[][] board) {
         board[0][0].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.ROOK));
         board[0][7].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.ROOK));
         board[7][0].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.ROOK));
         board[7][7].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.ROOK));
     }
 
-    private static void putKnights(Field[][] board) {
+    private void putKnights(Field[][] board) {
         board[0][1].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.KNIGHT));
         board[0][6].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.KNIGHT));
         board[7][1].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.KNIGHT));
         board[7][6].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.KNIGHT));
     }
 
-    private static void putBishops(Field[][] board) {
+    private void putBishops(Field[][] board) {
         board[0][2].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.BISHOP));
         board[0][5].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.BISHOP));
         board[7][2].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.BISHOP));
         board[7][5].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.BISHOP));
     }
 
-    private static void putQueens(Field[][] board) {
+    private void putQueens(Field[][] board) {
         board[0][3].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.QUEEN));
         board[7][3].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.QUEEN));
     }
 
-    private static void putKings(Field[][] board) {
+    private void putKings(Field[][] board) {
         board[0][4].setChessPiece(new ChessPiece(ChessPiece.Color.BLACK, ChessPiece.Piece.KING));
         board[7][4].setChessPiece(new ChessPiece(ChessPiece.Color.WHITE, ChessPiece.Piece.KING));
+
+        whiteKingField = getField(7, 4);
+        blackKingField = getField(0, 4);
     }
 
     /**
@@ -260,22 +278,6 @@ public class ChessBoard {
             chessPiece = new ChessPiece(field.getChessPiece());
         }
 
-        public List<Move> getValidMoves() {
-            List<Move> possibleMoves = new ArrayList<>();
-
-            for (Move move : getIntermediateMoves(false)) {
-                makeMove(move);
-
-                if (fieldsAttackingKing(chessPiece.getColor()).size() == 0) {
-                    possibleMoves.add(move);
-                }
-
-                unmakeMove(move);
-            }
-
-            return possibleMoves;
-        }
-
         public Position getPosition() {
             return position;
         }
@@ -294,86 +296,138 @@ public class ChessBoard {
         }
 
         /**
-         * Moves that can be made from this field not taking kings safety into account
-         *
-         * @param excludeKing Whether fields attacked by king should be ignored
-         * @return List of all possible moves that can be made not taking king safety into account
+         * Lst of valid moves taking king safety into account
+         * @return list mentioned
          */
-        private List<Move> getIntermediateMoves(boolean excludeKing) {
-            if (chessPiece == null || chessPiece.getColor() != colorToMove) {
+        public List<Move> getValidMoves() {
+            List<Move> validMoves = new ArrayList<>();
+
+            ChessPiece.Color opposingColor = ChessPiece.Color.getOpposingColor(chessPiece.getColor());
+
+            for (Move move : intermediateMoves()) {
+
+                ChessPiece attackedPiece = getField(move.getPosition()).getChessPiece();
+
+                makeMove(move);
+
+                Position kingPosition = (getColorToMove() == ChessPiece.Color.WHITE ? blackKingField : whiteKingField).getPosition();
+
+                if(!kingPosition.isAttacked(opposingColor) && attackedPiece.getPiece() != ChessPiece.Piece.KING) {
+                    validMoves.add(move);
+                }
+
+                unmakeMove(move);
+            }
+
+            return validMoves;
+        }
+
+        /**
+         * List of moves that can be made from this field not taking king safety into account
+         * @return List of said moves
+         */
+        private List<Move> intermediateMoves() {
+            if(chessPiece.getColor() != colorToMove) {
                 return new ArrayList<>();
             }
 
-            switch (chessPiece.piece) {
-                case KING:
-                    return excludeKing ? new ArrayList<>() : generateKingMoves();
-                case QUEEN:
-                    return generateQueenMoves();
-                case ROOK:
-                    return generateRookMoves();
+            switch(chessPiece.getPiece()) {
+                case PAWN:
+                    return generatePawnMoves();
                 case BISHOP:
                     return generateBishopMoves();
                 case KNIGHT:
                     return generateKnightMoves();
-                case PAWN:
-                    return generatePawnMoves();
+                case ROOK:
+                    return generateRookMoves();
+                case QUEEN:
+                    return generateQueenMoves();
+                case KING:
+                    return generateKingMoves();
                 default:
                     return new ArrayList<>();
             }
         }
 
-        private List<Move> generateKingMoves() {
+        /** Method that returns all possible moves that the pawn can make
+         * @return All possible moves that the pawn can make not taking king safety into account
+         */
+        private List<Move> generatePawnMoves() {
             List<Move> possibleMoves = new ArrayList<>();
+            int moveDirection = chessPiece.getColor() == ChessPiece.Color.WHITE ? -1 : 1;
+            Position currentPosition = getPosition();
+            Move proposedMove;
 
-            for (int i = 0; i < 4; i++) {
-                possibleMoves.addAll(checkDiagonals(1, i));
-            }
+            //Move one square forward
+            proposedMove = new Move(new Position(currentPosition.getRow() + moveDirection, currentPosition.getColumn()), getField(currentPosition), ChessPiece.SpecialMove.NON_ATTACKING);
 
-            if (canCastle(-1))
-                possibleMoves.add(new Move(new Position(position.row, 2),this, ChessPiece.SpecialMove.CASTLE));
-            if (canCastle(1)) possibleMoves.add(new Move(new Position(position.row, 6), this, ChessPiece.SpecialMove.CASTLE));
 
-            possibleMoves.addAll(checkColumns(1, -1));
-            possibleMoves.addAll(checkColumns(1, 1));
-
-            for (Move move : checkRows(1, -1)) {
-                if (possibleMoves.stream().noneMatch(m -> m.getPosition().equals(move.getPosition()))) {
-                    possibleMoves.add(move);
+            if (proposedMove.getPosition().isValid()  && getField(proposedMove.getPosition()).getChessPiece().getColor() == ChessPiece.Color.NONE) {
+                if(proposedMove.getPosition().getRow() == 0 || proposedMove.getPosition().getRow() == 7) {
+                    proposedMove.setSpecialMove(ChessPiece.SpecialMove.PROMOTION);
                 }
+
+                possibleMoves.add(proposedMove);
             }
 
-            for (Move move : checkRows(1, 1)) {
-                if (possibleMoves.stream().noneMatch(m -> m.getPosition().equals(move.getPosition()))) {
-                    possibleMoves.add(move);
+            //Move two squares forward
+            proposedMove = new Move(new Position(currentPosition.getRow() + 2 * moveDirection, currentPosition.getColumn()), getField(currentPosition), ChessPiece.SpecialMove.NON_ATTACKING);
+
+            if(chessPiece.getMovesMade() == 0 && !possibleMoves.isEmpty() && getField(proposedMove.getPosition()).getChessPiece().getColor() == ChessPiece.Color.NONE) {
+                possibleMoves.add(proposedMove);
+            }
+
+            //Capture
+            if(pawnCanCapture(-1)) {
+                proposedMove = new Move(new Position(currentPosition.getRow() + moveDirection, currentPosition.getColumn() - 1), getField(currentPosition));
+
+                if(proposedMove.getPosition().getRow() == 0 || proposedMove.getPosition().getRow() == 7) {
+                    proposedMove.setSpecialMove(ChessPiece.SpecialMove.PROMOTION);
                 }
+
+                possibleMoves.add(proposedMove);
             }
 
+            if(pawnCanCapture(1)) {
+                proposedMove = new Move(new Position(currentPosition.getRow() + moveDirection, currentPosition.getColumn() + 1), getField(currentPosition));
 
-            return filterInvalidMoves(possibleMoves);
+                if(proposedMove.getPosition().getRow() == 0 || proposedMove.getPosition().getRow() == 7) {
+                    proposedMove.setSpecialMove(ChessPiece.SpecialMove.PROMOTION);
+                }
+
+                possibleMoves.add(proposedMove);
+            }
+
+            //En Passant
+            if(pawnCanEnPassant(-1)) {
+                proposedMove = new Move(new Position(currentPosition.getRow() + moveDirection, currentPosition.getColumn() - 1),getField(currentPosition));
+                proposedMove.setSpecialMove(ChessPiece.SpecialMove.EN_PASSANT);
+
+                possibleMoves.add(proposedMove);
+            }
+
+            if(pawnCanEnPassant(1)) {
+                proposedMove = new Move(new Position(currentPosition.getRow() + moveDirection, currentPosition.getColumn() + 1),getField(currentPosition));
+                proposedMove.setSpecialMove(ChessPiece.SpecialMove.EN_PASSANT);
+
+                possibleMoves.add(proposedMove);
+            }
+
+            return possibleMoves;
         }
 
         /**
-         * Checks whether king can castle
-         *
-         * @param direction Direction in which to castle(-1 to the left, 1 - to the right)
-         * @return whether king can castle
+         * Tests whether pawn can capture a piece in diagonal specified by direction
+         * @param direction -1 is left diagonal and 1 is right diagonal
+         * @return whether pawn can capture a piece in specified diagonal
          */
-        private boolean canCastle(int direction) {
-            int startingColumn = direction == -1 ? 1 : 4;
-            int endingColumn = direction == -1 ? 4 : 6;
-            ChessPiece piece = getField(position.row, direction == -1 ? 0 : 7).getChessPiece();
-            Field currentField;
+        private boolean pawnCanCapture(int direction) {
+            int moveDirection = chessPiece.getColor() == ChessPiece.Color.WHITE ? -1 : 1;
+            ChessPiece.Color opposingColor = ChessPiece.Color.getOpposingColor(chessPiece.getColor());
 
-            if (areInCorrectPositionsForCastle(piece)) {
+            Position attackedPosition = new Position(getPosition().getRow() + moveDirection, getPosition().getColumn() + direction);
 
-                for (int i = startingColumn; i <= endingColumn; i++) {
-                    currentField = getField(position.getRow(), i);
-
-                    if (!canPassForCastle(currentField)) {
-                        return false;
-                    }
-                }
-
+            if (attackedPosition.isValid() && getField(attackedPosition).getChessPiece().getColor() == opposingColor) {
                 return true;
             }
 
@@ -381,201 +435,147 @@ public class ChessBoard {
         }
 
         /**
-         * Checks whether king can pass through this field for castle
-         *
-         * @param field Field to pass through
-         * @return whether king can pass given field
+         * Tests whether pawn can make an en passant move
+         * @param direction direction to make an en passant move
+         * @return whether en passant move is possible
          */
-        private boolean canPassForCastle(Field field) {
-            ChessPiece.Color opposingColor = ChessPiece.Color.getOpposingColor(colorToMove);
+        private boolean pawnCanEnPassant(int direction) {
+            int moveDirection = chessPiece.getColor() == ChessPiece.Color.WHITE ? -1 : 1;
+            ChessPiece.Color opposingColor = ChessPiece.Color.getOpposingColor(chessPiece.getColor());
 
-            return !field.getPosition().isAttacked(opposingColor, false) && field.getChessPiece().getColor() == ChessPiece.Color.NONE;
-        }
+            Position attackedPosition = new Position(getPosition().getRow() + moveDirection, getPosition().getColumn() + direction);
 
-        /**
-         * Checks whether king and rook are in correct positions for castle
-         *
-         * @param piece Piece at the position of rook
-         * @return whether king and rook are in correct positions for castle
-         */
-        private boolean areInCorrectPositionsForCastle(ChessPiece piece) {
-            return chessPiece.getMovesMade() == 0 && piece.getPiece() == ChessPiece.Piece.ROOK && piece.getColor() == chessPiece.color && piece.getMovesMade() == 0;
-        }
+            if (attackedPosition.isValid()) {
+                ChessPiece attackedPiece = getField(attackedPosition).getChessPiece();
 
-        private List<Move> filterInvalidMoves(List<Move> moves) {
-            moves = moves.stream().filter(move -> !move.getPosition().isAttacked(ChessPiece.Color.getOpposingColor(colorToMove), true)).collect(Collectors.toList());
-            return filterMovesAttackingEnemyKing(moves);
-        }
-
-        /**
-         * Removes the moves that would put the king too close to enemy king
-         * @param moves All moves that the king could make
-         */
-        private List<Move> filterMovesAttackingEnemyKing(List<Move> moves) {
-            Position enemyKingPosition = findKingPosition(ChessPiece.Color.getOpposingColor(colorToMove));
-
-            moves.removeIf(move -> {
-                if(enemyKingPosition != null) return move.getPosition().distanceFrom(enemyKingPosition) < 2;
-                return false;
-            });
-
-            return moves;
-        }
-
-        private List<Move> generateQueenMoves() {
-            List<Move> possibleMoves = new ArrayList<>();
-
-            for (int i = 0; i < 4; i++) {
-                possibleMoves.addAll(checkDiagonals(8, i));
-            }
-
-            possibleMoves.addAll(checkRows(8, -1));
-            possibleMoves.addAll(checkRows(8, 1));
-            possibleMoves.addAll(checkColumns(8, -1));
-            possibleMoves.addAll(checkColumns(8, 1));
-
-            return possibleMoves;
-        }
-
-        private List<Move> generateRookMoves() {
-            List<Move> possibleMoves = new ArrayList<>();
-
-            possibleMoves.addAll(checkColumns(8, -1));
-            possibleMoves.addAll(checkColumns(8, 1));
-            possibleMoves.addAll(checkRows(8, -1));
-            possibleMoves.addAll(checkRows(8, 1));
-
-            return possibleMoves;
-        }
-
-        private List<Move> generateBishopMoves() {
-            List<Move> possibleMoves = new ArrayList<>();
-
-            for (int i = 0; i < 4; i++) {
-                possibleMoves.addAll(checkDiagonals(8, i));
-            }
-
-            return possibleMoves;
-        }
-
-        private List<Move> generateKnightMoves() {
-            List<Move> possibleMoves = new ArrayList<>();
-
-            for (Move move : generateProposedKnightMoves()) {
-
-                if (move.getPosition().isValid() && getField(move.getPosition()).getChessPiece().getColor() != colorToMove) {
-                    possibleMoves.add(move);
+                if(attackedPiece.getColor() == opposingColor && chessPiece.getMovesMade() == 1 && chessPiece.getPiece() == ChessPiece.Piece.PAWN) {
+                    return opposingColor == ChessPiece.Color.BLACK && attackedPosition.getRow() == 3 || opposingColor == ChessPiece.Color.WHITE && attackedPosition.getRow() == 4;
                 }
             }
 
+            return false;
+        }
+
+        /**
+         * List of moves that can be made from this field by a rook not taking king safety into account
+         * @return list mentioned
+         */
+        private List<Move> generateBishopMoves() {
+            List<Move> possibleMoves = new ArrayList<>();
+
+            possibleMoves.addAll(checkDiagonals(8,0));
+            possibleMoves.addAll(checkDiagonals(8, 1));
+            possibleMoves.addAll(checkDiagonals(8, 2));
+            possibleMoves.addAll(checkDiagonals(8, 3));
+
             return possibleMoves;
         }
 
-        private List<Move> generateProposedKnightMoves() {
-            List<Move> proposedMoves = new ArrayList<>();
+        /** List of moves that can be made from this field by a knight not taking king safety into account
+         * @return list mentioned
+         */
+        private List<Move> generateKnightMoves() {
+            List<Move> possibleMoves = new ArrayList<>();
+            Position proposedPosition;
 
-            for (int i = -2; i <= 2; i++) {
-                for (int j = -2; j <= 2; j++) {
-                    if (Math.abs(i) + Math.abs(j) == 3) {
-                        proposedMoves.add(new Move(new Position(position.row + i, position.column + j), this));
+            for (int row = -2; row < 3; row++) {
+                for (int column = -2; column < 3; column++) {
+                    if(Math.abs(row) + Math.abs(column) == 3) {
+                        proposedPosition = new Position(getPosition().getRow() + row, getPosition().getColumn() + column);
+
+                        if (proposedPosition.isValid() && getField(proposedPosition).getChessPiece().getColor() != chessPiece.getColor()) {
+                            possibleMoves.add(new Move(proposedPosition, getField(getPosition())));
+                        }
                     }
                 }
             }
 
-            return proposedMoves;
+            return possibleMoves;
         }
 
-        private List<Move> generatePawnMoves() {
+        /** List of moves that can be made from this field by a rook not taking king safety into account
+         * @return list mentioned
+         */
+        private List<Move> generateRookMoves() {
             List<Move> possibleMoves = new ArrayList<>();
-            int moveDirection = chessPiece.getColor() == ChessPiece.Color.WHITE ? -1 : 1;
-            Move proposedMove = new Move(new Position(position.getRow() + moveDirection, position.getColumn()),this, ChessPiece.SpecialMove.NON_ATTACKING);
+            possibleMoves.addAll(checkRows(8, 1));
+            possibleMoves.addAll(checkRows(8, -1));
+            possibleMoves.addAll(checkColumns(8, 1));
+            possibleMoves.addAll(checkColumns(8, -1));
 
-            if (proposedMove.getPosition().isValid() && getField(proposedMove.getPosition()).getChessPiece().getPiece() == ChessPiece.Piece.NONE) {
-                if (canBePromoted(proposedMove)) {
-                    proposedMove.setSpecialMove(ChessPiece.SpecialMove.PROMOTION);
+            return possibleMoves;
+        }
+
+        /** List of moves that can be made from this field by a queen not taking king safety into account
+         * @return list mentioned
+         */
+        private List<Move> generateQueenMoves() {
+            List<Move> possibleMoves = new ArrayList<>();
+
+            possibleMoves.addAll(generateBishopMoves());
+            possibleMoves.addAll(generateRookMoves());
+
+            return possibleMoves;
+        }
+
+        /** List of moves that can be made from this field by a king not taking its safety into account
+         * @return list mentioned above
+         */
+        private List<Move> generateKingMoves() {
+            List<Move> possibleMoves = new ArrayList<>();
+
+            for (int row = -1; row < 2; row++) {
+                for (int column = -1; column < 2; column++) {
+                    if (row != 0 || column != 0) {
+                        Position proposedPosition = new Position(getPosition().getRow() + row, getPosition().getColumn() + column);
+
+                        if(proposedPosition.isValid() && getField(proposedPosition).getChessPiece().getColor() != chessPiece.getColor()) {
+                            possibleMoves.add(new Move(proposedPosition, getField(getPosition())));
+                        }
+                    }
                 }
-
-                possibleMoves.add(proposedMove);
             }
 
-            proposedMove = new Move(new Position(position.getRow() + 2 * moveDirection, position.getColumn()),this, ChessPiece.SpecialMove.NON_ATTACKING);
+            if (canCastle(-1)) {
+                Position movePosition = new Position(getPosition().getRow(), 2);
 
-            if (proposedMove.getPosition().isValid() && chessPiece.getMovesMade() == 0 && !possibleMoves.isEmpty() && getField(proposedMove.getPosition()).getChessPiece().getPiece() == ChessPiece.Piece.NONE) {
-
-                possibleMoves.add(proposedMove);
+                possibleMoves.add(new Move(movePosition,this, ChessPiece.SpecialMove.CASTLE));
             }
 
-            proposedMove = attackingMove(-1);
-            if (proposedMove != null) possibleMoves.add(proposedMove);
+            if(canCastle(1)) {
+                Position movePosition = new Position(getPosition().getRow(), 6);
 
-            proposedMove = attackingMove(1);
-            if (proposedMove != null) possibleMoves.add(proposedMove);
-
-            proposedMove = enPassant(-1);
-            if (proposedMove != null) possibleMoves.add(proposedMove);
-
-            proposedMove = enPassant(1);
-            if (proposedMove != null) possibleMoves.add(proposedMove);
+                possibleMoves.add(new Move(movePosition, this, ChessPiece.SpecialMove.CASTLE));
+            }
 
             return possibleMoves;
         }
 
         /**
-         * Checks whether pawn can make en passant move in specified direction
-         *
-         * @param direction Direction to attack(-1 to the left, 1 to the right)
-         * @return move if it can be made or null
+         * Checks whether king can castle in specified direction
+         * @param direction Direction of the castle(-1 to the left, 1 - to the right)
+         * @return whether king can castle in the specified direction
          */
-        private Move enPassant(int direction) {
-            int moveDirection = chessPiece.getColor() == ChessPiece.Color.BLACK ? 1 : -1;
-            Move proposedMove = new Move(new Position(position.row, position.column + direction),this, ChessPiece.SpecialMove.EN_PASSANT);
+        private boolean canCastle(int direction) {
+            int row = chessPiece.getColor() == ChessPiece.Color.WHITE ? 7 : 0;
+            int startingColumn = direction == -1 ? 1 : 5;
+            int endingColumn = direction == -1 ? 3 : 6;
+            ChessPiece rook = (direction == -1 ? getField(row, 0) : getField(row, 7)).getChessPiece();
+            ChessPiece.Color opposingColor = ChessPiece.Color.getOpposingColor(chessPiece.getColor());
 
-            if (proposedMove.getPosition().isValid() && doublePawnMoveMade(getField(proposedMove.getPosition()))) {
-                proposedMove.getPosition().setRow(proposedMove.getPosition().getRow() + moveDirection);
-                return proposedMove;
-            }
+            if(getChessPiece().getMovesMade() != 0) return false;
+            if(!rook.isOfType(chessPiece.getColor(), ChessPiece.Piece.ROOK)) return false;
+            if(rook.getMovesMade() != 0) return false;
 
-            return null;
-        }
+            for (int column = startingColumn; column <= endingColumn; column++) {
+                Field currentField = getField(row, column);
 
-        //Checks whether pawn move spanning two fields was made on this field previous turn
-        private boolean doublePawnMoveMade(Field field) {
-            ChessPiece.Color opposingColor = ChessPiece.Color.getOpposingColor(colorToMove);
-            boolean doubleMove = field.turnStanding == 1 && (field.getChessPiece().getColor() == ChessPiece.Color.BLACK ? 3 : 4) == field.getPosition().getRow();
-
-            return field.getChessPiece().getColor() == opposingColor && field.getChessPiece().getPiece() == ChessPiece.Piece.PAWN && doubleMove;
-        }
-
-        /**
-         * Checks whether pawn can attack in specified direction
-         *
-         * @param direction Direction to attack(-1 to the left, 1 to the right)
-         * @return move if it can be made or null
-         */
-        private Move attackingMove(int direction) {
-            int moveDirection = chessPiece.getColor() == ChessPiece.Color.BLACK ? 1 : -1;
-            ChessPiece.Color opposingColor = ChessPiece.Color.getOpposingColor(colorToMove);
-            Move proposedMove = new Move(new Position(position.getRow() + moveDirection, position.getColumn() + direction), this);
-
-            if (proposedMove.getPosition().isValid() && getField(proposedMove.getPosition()).getChessPiece().getColor() == opposingColor) {
-                if (canBePromoted(proposedMove)) {
-                    proposedMove.setSpecialMove(ChessPiece.SpecialMove.PROMOTION);
+                if (currentField.getChessPiece().getColor() != ChessPiece.Color.NONE || currentField.getPosition().isAttacked(opposingColor)) {
+                    return false;
                 }
-
-                return proposedMove;
             }
 
-            return null;
-        }
-
-        /**
-         * Checks whether the pawn can be promoted after the specified move
-         *
-         * @param move Move to be made
-         * @return whether the pawn can be promoted after the specified move
-         */
-        private boolean canBePromoted(Move move) {
-            return move.getPosition().getRow() == 0 || move.getPosition().getRow() == 7;
+            return true;
         }
 
         /**
@@ -729,31 +729,108 @@ public class ChessBoard {
                 return otherPosition.row == row && otherPosition.column == column;
             }
 
-            public boolean isAttacked(ChessPiece.Color color, boolean excludingKing) {
-                ChessPiece.Color previousColor = colorToMove;
-                colorToMove = color;
+            private boolean isAttacked(ChessPiece.Color color) {
+                return isAttackedByPawn(color) || isAttackedByKing(color) || isAttackedByPiece(color, ChessPiece.Piece.BISHOP)
+                   ||  isAttackedByPiece(color, ChessPiece.Piece.KNIGHT) || isAttackedByPiece(color, ChessPiece.Piece.ROOK)
+                   ||  isAttackedByPiece(color, ChessPiece.Piece.QUEEN);
+            }
 
-                for (Field[] fieldRow : board) {
-                    for (Field field : fieldRow) {
-                        if (field.getChessPiece().getColor() == color) {
-                            if (!(field.getChessPiece().getPiece() == ChessPiece.Piece.KING && excludingKing) && field.getIntermediateMoves(true).stream().anyMatch(move -> move.getPosition().equals(this) && move.getSpecialMove() != ChessPiece.SpecialMove.NON_ATTACKING)) {
-                                colorToMove = previousColor;
-                                return true;
+            /**
+             * Checks whether this position is attacked by a pawn of specified color
+             * @param color Color of attacking piece
+             * @return whether this position is attacked by a pawn of specified color
+             */
+            private boolean isAttackedByPawn(ChessPiece.Color color) {
+                for(int direction = 0; direction < 4 ; direction++) {
+                    if(isAttackedDiagonally(color, direction)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            /**
+             * Checks whether this position is attacked by a piece of color diagonally
+             * @param color Color of attacking pawn
+             * @param direction Which diagonal to check(0 - upper right, 1 - lower right, 2 - upper right, 3 - lower right)
+             * @return whether this position is attacked by a pawn of specified color in specified direction
+             */
+            private boolean isAttackedDiagonally(ChessPiece.Color color, int direction) {
+                int rowDirection = direction % 2 == 0 ? 1 : -1;
+                int columnDirection = direction / 2 == 0  ? 1 : -1;
+
+                Position checkedPosition = new Position(getRow() + rowDirection, getColumn() + columnDirection);
+
+                if(checkedPosition.isValid()) {
+                    ChessPiece attackedPiece = getField(checkedPosition).getChessPiece();
+
+                    return attackedPiece.isOfType(color, ChessPiece.Piece.PAWN);
+                }
+
+                return false;
+            }
+
+            /**
+             * Checks whether this position is attacked by a king of specified color
+             * @param color Color of attacking king
+             * @return whether this position is attacked by a king of specified color
+             */
+            private boolean isAttackedByKing(ChessPiece.Color color) {
+                for (int row = -1; row < 2; row++) {
+                    for (int column = -1; column < 2; column++) {
+                        if (row != 0 || column != 0) {
+                            Position checkedPosition = new Position(getRow() + row, getColumn() + column);
+
+                            if (checkedPosition.isValid()) {
+                                ChessPiece attackedPiece = getField(checkedPosition).getChessPiece();
+
+                                if (attackedPiece.isOfType(color, ChessPiece.Piece.KING)) {
+                                    return true;
+                                }
                             }
                         }
                     }
                 }
 
-                colorToMove = previousColor;
                 return false;
             }
 
-            //Returns distance from other position
-            public int distanceFrom(Position otherPosition) {
-                int rowDistance = Math.abs(row - otherPosition.row);
-                int columnDistance = Math.abs(column - otherPosition.column);
+            /**
+             * Checks whether this position is attacked by a piece of specified color and piece type
+             * @param color Color of attacking piece
+             * @param piece Type of attacking piece
+             * @return whether this position is attacked by a specified chess piece
+             */
+            private boolean isAttackedByPiece(ChessPiece.Color color, ChessPiece.Piece piece) {
+                List<Move> possibleMoves;
 
-                return Math.max(rowDistance, columnDistance);
+                switch(piece) {
+                    case KNIGHT:
+                        possibleMoves = getField(this).generateKnightMoves();
+                        break;
+                    case BISHOP:
+                        possibleMoves = getField(this).generateBishopMoves();
+                        break;
+                    case ROOK:
+                        possibleMoves = getField(this).generateRookMoves();
+                        break;
+                    case QUEEN:
+                        possibleMoves = getField(this).generateQueenMoves();
+                        break;
+                    default:
+                        possibleMoves = new ArrayList<>();
+                }
+
+                for (Move move : possibleMoves) {
+                    ChessPiece attackedPiece = getField(move.getPosition()).getChessPiece();
+
+                    if (attackedPiece.isOfType(color, piece)) {
+                        return true;
+                    }
+                }
+
+                return false;
             }
         }
 
@@ -853,6 +930,10 @@ public class ChessBoard {
 
         public void incrementMovesMade() {
             movesMade++;
+        }
+
+        private boolean isOfType(Color color, Piece piece) {
+            return this.color == color && this.piece == piece;
         }
 
         /**

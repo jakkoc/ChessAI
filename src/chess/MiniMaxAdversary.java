@@ -50,7 +50,7 @@ public class MiniMaxAdversary extends ComputerAdversary {
     }
 
     private List<ChessBoard.Field.Move> getPart(List<ChessBoard.Field.Move> moves, int number) {
-        List<ChessBoard.Field.Move> parts= new ArrayList<>();
+        List<ChessBoard.Field.Move> parts = new ArrayList<>();
 
         for(int i = 0; i < moves.size(); i++) {
             if(i % NUMBER_OF_THREADS == number) parts.add(moves.get(i));
@@ -76,8 +76,10 @@ public class MiniMaxAdversary extends ComputerAdversary {
             orderMoves(board, moves);
 
             for(ChessBoard.Field.Move move : moves) {
+                int positionValueChange = PieceTables.evaluateMovePositionChange(board, move);
+
                 board.makeMove(move);
-                currentEvaluation = minimax(board, startingMoves, depth - 1, false, alpha, beta);
+                currentEvaluation = positionValueChange + minimax(board, startingMoves, depth - 1, false, alpha, beta);
                 board.unmakeMove(move);
 
                 maximumEvaluation = Math.max(maximumEvaluation, currentEvaluation);
@@ -102,8 +104,9 @@ public class MiniMaxAdversary extends ComputerAdversary {
             orderMoves(board, moves);
 
             for(ChessBoard.Field.Move move : moves) {
+                int positionValueChange = PieceTables.evaluateMovePositionChange(board, move);
                 board.makeMove(move);
-                currentEvaluation = minimax(board, startingMoves, depth - 1, true, alpha, beta);
+                currentEvaluation = positionValueChange + minimax(board, startingMoves, depth - 1, true, alpha, beta);
                 board.unmakeMove(move);
 
                 minimumEvaluation = Math.min(currentEvaluation, minimumEvaluation);
