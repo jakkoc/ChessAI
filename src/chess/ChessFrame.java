@@ -214,9 +214,8 @@ public class ChessFrame extends JFrame implements MouseListener, MouseMotionList
     }
 
     private void checkForGameEnding() {
-        ChessBoard.ChessPiece.Color winner = board.getWinner();
 
-        if (winner != ChessBoard.ChessPiece.Color.NONE) {
+        if (board.cannotMove(board.getColorToMove())) {
             setGameEndingSound();
             if(soundEffect != null) soundEffect.play();
             displayVictoryPanel();
@@ -236,11 +235,11 @@ public class ChessFrame extends JFrame implements MouseListener, MouseMotionList
 
     private void displayVictoryPanel() {
         JPanel panel = new JPanel();
-        ChessBoard.ChessPiece.Color winner = board.getWinner();
-        boolean isStalemate = board.isStalemate(winner);
+        ChessBoard.ChessPiece.Color winner = ChessBoard.ChessPiece.Color.getOpposingColor(board.getColorToMove());
+        boolean isCheckmate = board.isCheckMate(winner);
         Font font = new Font("Times New Roman",Font.ITALIC, this.getWidth() / 20);
         panel.setPreferredSize(new Dimension(this.getWidth() / 2, (int)(this.getHeight() / 4.5)));
-        JTextField text = new JTextField(isStalemate ? "A draw" : winner.getColor() + " player wins!");
+        JTextField text = new JTextField(isCheckmate ? winner.getColor() + " player wins!" : "A draw");
         text.setPreferredSize(panel.getPreferredSize());
         text.setVisible(true);
         text.setBackground(Colors.BROWN.getColor());
@@ -248,7 +247,7 @@ public class ChessFrame extends JFrame implements MouseListener, MouseMotionList
         text.setFont(font);
         text.setHorizontalAlignment(SwingConstants.CENTER);
         panel.add(text);
-        JOptionPane.showConfirmDialog(null, text,isStalemate ? "Stalemate" : "Checkmate", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE);
+        JOptionPane.showConfirmDialog(null, text,isCheckmate ? "Checkmate" : "Stalemate", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE);
     }
 
     private Component findMoveTarget(MouseEvent e) {
