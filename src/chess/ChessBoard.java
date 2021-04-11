@@ -452,10 +452,9 @@ public class ChessBoard {
          * @return whether en passant move is possible
          */
         private boolean pawnCanEnPassant(int direction) {
-            int moveDirection = chessPiece.getColor() == ChessPiece.Color.WHITE ? -1 : 1;
             ChessPiece.Color opposingColor = ChessPiece.Color.getOpposingColor(chessPiece.getColor());
 
-            Position attackedPosition = new Position(getPosition().getRow() + moveDirection, getPosition().getColumn() + direction);
+            Position attackedPosition = new Position(getPosition().getRow(), getPosition().getColumn() + direction);
 
             if (attackedPosition.isValid()) {
                 ChessPiece attackedPiece = getField(attackedPosition).getChessPiece();
