@@ -15,6 +15,18 @@ public class ChessBoard {
     private Field whiteKingField;
     private Field blackKingField;
 
+    //TODO Delete
+    public void debug() {
+        for(Field[] row : board) {
+            for (Field field : row) {
+                ChessPiece currentPiece = field.getChessPiece();
+                System.out.print(currentPiece.getPiece().getName().charAt(0) + "" + currentPiece.getColor().getColor().charAt(0) + " ");
+            }
+            System.out.println();
+        }
+        System.out.println();
+    }
+
     public static ChessBoard startingPosition() {
         Field[][] board = new Field[8][8];
         PieceTables.initializePieceTables();

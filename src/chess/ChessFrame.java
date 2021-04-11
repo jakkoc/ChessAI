@@ -216,6 +216,7 @@ public class ChessFrame extends JFrame implements MouseListener, MouseMotionList
         JPanel startingField = fields[movedPosition.getRow()][movedPosition.getColumn()];
         JPanel endingField = fields[move.getPosition().getRow()][move.getPosition().getColumn()];
         chessPiece = (JLabel)startingField.getComponent(0);
+        chessPiece.setIcon(scaleImageToIcon(getImageIcon(movedPiece)));
 
         removePiece(movedPosition.getRow(), movedPosition.getColumn());
 
