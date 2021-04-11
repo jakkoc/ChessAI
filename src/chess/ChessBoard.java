@@ -3,6 +3,7 @@ package chess;
 import java.util.*;
 
 import static chess.ChessBoard.ChessPiece.Color.BLACK;
+import static chess.ChessBoard.ChessPiece.Color.WHITE;
 
 public class ChessBoard {
     private final Field[][] board;
@@ -714,7 +715,6 @@ public class ChessBoard {
                 return row >= 0 && row <= 7 && column >= 0 && column <= 7;
             }
 
-            //TODO DEBUG
             public String toString() {
                 return row + " " + column;
             }
@@ -740,7 +740,9 @@ public class ChessBoard {
              * @return whether this position is attacked by a pawn of specified color
              */
             private boolean isAttackedByPawn(ChessPiece.Color color) {
-                for(int direction = 0; direction < 4 ; direction++) {
+                int startingDiagonal = color == WHITE ? 0 : 1;
+
+                for(int direction = startingDiagonal; direction < 4 ; direction+= 2) {
                     if(isAttackedDiagonally(color, direction)) {
                         return true;
                     }
@@ -752,7 +754,7 @@ public class ChessBoard {
             /**
              * Checks whether this position is attacked by a piece of color diagonally
              * @param color Color of attacking pawn
-             * @param direction Which diagonal to check(0 - upper right, 1 - lower right, 2 - upper right, 3 - lower right)
+             * @param direction Which diagonal to check(0 - upper right, 1 - lower right, 2 - upper left, 3 - lower left)
              * @return whether this position is attacked by a pawn of specified color in specified direction
              */
             private boolean isAttackedDiagonally(ChessPiece.Color color, int direction) {
