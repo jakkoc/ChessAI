@@ -202,7 +202,7 @@ public class ChessFrame extends JFrame implements MouseListener, MouseMotionList
         checkForGameEnding();
 
         if(board.getColorToMove() == ChessBoard.ChessPiece.Color.BLACK) {
-            computerMove();
+            EventQueue.invokeLater(this::computerMove);
         }
     }
 
